@@ -11,6 +11,15 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    proxy: {
+      '/api/nhl': {
+        target: 'https://api-web.nhle.com/v1',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/nhl/, ''),
+      },
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',
