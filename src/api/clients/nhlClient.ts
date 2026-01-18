@@ -1,6 +1,10 @@
 import { Game, WeekSchedule, TeamWeekSchedule, TeamAbbrev } from '@/models';
 
-const NHL_API_BASE = 'https://api-web.nhle.com/v1';
+// Use proxy in development to avoid CORS issues
+// In production, this should be proxied through the backend
+const NHL_API_BASE = import.meta.env.DEV
+  ? '/api/nhl'
+  : 'https://api-web.nhle.com/v1';
 
 /** NHL team abbreviations mapped to full names */
 export const NHL_TEAMS: Record<TeamAbbrev, string> = {

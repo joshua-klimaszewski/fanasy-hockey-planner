@@ -9,7 +9,10 @@ import {
   DEFAULT_ROSTER_CONFIG,
   isBenchSlot,
   isIRSlot,
+  hasGameOnDate,
 } from '@/models';
+import { useWeekSchedule } from '@/api/hooks/useSchedule';
+import { analyzeGoalieWeek } from '@/lib/optimization/goalieHandler';
 import RosterRow from './RosterRow';
 
 interface RosterGridProps {
@@ -78,49 +81,68 @@ function generateMockRoster(): RosterSlot[] {
   return slots;
 }
 
-// Generate mock game indicators
-function getMockGameIndicators(slot: RosterSlot): GameIndicator[] {
-  if (!slot.player) {
-    return ['-', '-', '-', '-', '-', '-', '-'];
-  }
-
-  // Random game schedule for demo
-  const hasGame = [
-    Math.random() > 0.5,
-    Math.random() > 0.6,
-    Math.random() > 0.5,
-    Math.random() > 0.6,
-    Math.random() > 0.5,
-    Math.random() > 0.4,
-    Math.random() > 0.5,
-  ];
-
-  return hasGame.map((game, index) => {
-    if (!game) return '-';
-
-    // If bench player
-    if (isBenchSlot(slot)) {
-      // Random conflict
-      return Math.random() > 0.3 ? 'X' : 'O';
-    }
-
-    // If goalie, check for back-to-back
-    if (slot.type === 'G' && index > 0 && hasGame[index - 1]) {
-      return '||';
-    }
-
-    return 'X';
-  });
-}
-
 export default function RosterGrid({ week }: RosterGridProps) {
   const dates = getWeekDates(week.startDate);
   const roster = generateMockRoster();
+
+  // Fetch real NHL schedule data
+  const { data: schedule, isLoading, error } = useWeekSchedule(week.startDate);
+
+  // Generate game indicators based on real schedule data
+  const getGameIndicators = (slot: RosterSlot): GameIndicator[] => {
+    if (!slot.player || !schedule) {
+      return ['-', '-', '-', '-', '-', '-', '-'];
+    }
+
+    // For goalies, use the goalie handler
+    if (slot.player.positions.includes('G')) {
+      const analysis = analyzeGoalieWeek(slot.player, schedule, week.startDate);
+      return analysis.days.map((day) => day.indicator);
+    }
+
+    // For skaters, check if they have games on each day
+    return dates.map((date) => {
+      const hasGame = hasGameOnDate(schedule, slot.player!.team, date);
+      if (!hasGame) return '-';
+
+      // For starters, show X
+      if (!isBenchSlot(slot)) {
+        return 'X';
+      }
+
+      // For bench players, show X for now (bench cascade will add O later)
+      return 'X';
+    });
+  };
 
   // Group slots by category
   const starters = roster.filter((s) => !isBenchSlot(s) && !isIRSlot(s));
   const bench = roster.filter((s) => isBenchSlot(s));
   const ir = roster.filter((s) => isIRSlot(s));
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="bg-slate-800 rounded-lg p-4">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-slate-400">Loading schedule...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="bg-slate-800 rounded-lg p-4">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-red-400">
+            Error loading schedule: {error.message}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const renderSection = (title: string, slots: RosterSlot[]) => (
     <div className="space-y-1">
@@ -128,7 +150,7 @@ export default function RosterGrid({ week }: RosterGridProps) {
         {title}
       </h3>
       {slots.map((slot) => {
-        const indicators = getMockGameIndicators(slot);
+        const indicators = getGameIndicators(slot);
         const totalGames = indicators.filter((i) => i !== '-').length;
         return (
           <RosterRow
