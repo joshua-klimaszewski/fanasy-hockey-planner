@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import {
   Week,
   Player,
+  PlayerPosition,
   RosterSlot,
   RosterConfig,
   DEFAULT_ROSTER_CONFIG,
@@ -35,20 +36,13 @@ function generateEmptyRoster(config: RosterConfig): RosterSlot[] {
   return slots;
 }
 
-/** Auth state */
-interface AuthState {
-  isAuthenticated: boolean;
-  accessToken: string | null;
-  refreshToken: string | null;
-  expiresAt: number | null;
-  userName: string | null;
+/** Custom position overrides stored separately */
+interface PositionOverrides {
+  [playerId: string]: PlayerPosition[];
 }
 
 /** App state */
 interface AppState {
-  // Auth
-  auth: AuthState;
-
   // Week selection
   selectedWeek: Week;
 
@@ -58,60 +52,39 @@ interface AppState {
   // Current roster (with player assignments)
   roster: RosterSlot[];
 
-  // Available players (from Yahoo/mock)
+  // Available players (from NHL API)
   availablePlayers: Player[];
+
+  // Custom position overrides (persisted separately from player data)
+  positionOverrides: PositionOverrides;
 
   // Bench priority order (slot IDs in priority order)
   benchPriority: string[];
 
-  // Selected league (from Yahoo)
-  selectedLeagueKey: string | null;
-
   // Actions
-  setAuth: (auth: Partial<AuthState>) => void;
-  clearAuth: () => void;
   setSelectedWeek: (week: Week) => void;
   setRosterConfig: (config: RosterConfig) => void;
   assignPlayer: (playerId: string, slotId: string) => void;
   unassignPlayer: (slotId: string) => void;
   setAvailablePlayers: (players: Player[]) => void;
+  updatePlayerPositions: (playerId: string, positions: PlayerPosition[]) => void;
+  clearPlayerPositions: (playerId: string) => void;
   setBenchPriority: (priority: string[]) => void;
-  setSelectedLeague: (leagueKey: string | null) => void;
   resetRoster: () => void;
 }
-
-const initialAuthState: AuthState = {
-  isAuthenticated: false,
-  accessToken: null,
-  refreshToken: null,
-  expiresAt: null,
-  userName: null,
-};
 
 export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
       // Initial state
-      auth: initialAuthState,
       selectedWeek: getCurrentWeek(),
       rosterConfig: DEFAULT_ROSTER_CONFIG,
       roster: generateEmptyRoster(DEFAULT_ROSTER_CONFIG),
       availablePlayers: [],
+      positionOverrides: {},
       benchPriority: [],
-      selectedLeagueKey: null,
 
       // Actions
-      setAuth: (authUpdate) =>
-        set((state) => ({
-          auth: { ...state.auth, ...authUpdate },
-        })),
-
-      clearAuth: () =>
-        set({
-          auth: initialAuthState,
-          selectedLeagueKey: null,
-        }),
-
       setSelectedWeek: (week) => set({ selectedWeek: week }),
 
       setRosterConfig: (config) =>
@@ -123,8 +96,15 @@ export const useAppStore = create<AppState>()(
 
       assignPlayer: (playerId, slotId) =>
         set((state) => {
-          const player = state.availablePlayers.find((p) => p.id === playerId);
-          if (!player) return state;
+          // Find player from available players, applying any position overrides
+          const basePlayer = state.availablePlayers.find((p) => p.id === playerId);
+          if (!basePlayer) return state;
+
+          // Apply position override if exists
+          const customPositions = state.positionOverrides[playerId];
+          const player: Player = customPositions
+            ? { ...basePlayer, customPositions }
+            : basePlayer;
 
           // Remove player from any existing slot
           const newRoster = state.roster.map((slot) => {
@@ -152,11 +132,71 @@ export const useAppStore = create<AppState>()(
           ),
         })),
 
-      setAvailablePlayers: (players) => set({ availablePlayers: players }),
+      setAvailablePlayers: (players) =>
+        set((state) => {
+          // Apply existing position overrides to new players
+          const playersWithOverrides = players.map((player) => {
+            const customPositions = state.positionOverrides[player.id];
+            return customPositions ? { ...player, customPositions } : player;
+          });
+          return { availablePlayers: playersWithOverrides };
+        }),
+
+      updatePlayerPositions: (playerId, positions) =>
+        set((state) => {
+          const newOverrides = {
+            ...state.positionOverrides,
+            [playerId]: positions,
+          };
+
+          // Update in available players
+          const updatedAvailable = state.availablePlayers.map((player) =>
+            player.id === playerId
+              ? { ...player, customPositions: positions }
+              : player
+          );
+
+          // Update in roster slots
+          const updatedRoster = state.roster.map((slot) =>
+            slot.player?.id === playerId
+              ? { ...slot, player: { ...slot.player, customPositions: positions } }
+              : slot
+          );
+
+          return {
+            positionOverrides: newOverrides,
+            availablePlayers: updatedAvailable,
+            roster: updatedRoster,
+          };
+        }),
+
+      clearPlayerPositions: (playerId) =>
+        set((state) => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { [playerId]: _removed, ...newOverrides } = state.positionOverrides;
+
+          // Update in available players
+          const updatedAvailable = state.availablePlayers.map((player) =>
+            player.id === playerId
+              ? { ...player, customPositions: undefined }
+              : player
+          );
+
+          // Update in roster slots
+          const updatedRoster = state.roster.map((slot) =>
+            slot.player?.id === playerId
+              ? { ...slot, player: { ...slot.player, customPositions: undefined } }
+              : slot
+          );
+
+          return {
+            positionOverrides: newOverrides,
+            availablePlayers: updatedAvailable,
+            roster: updatedRoster,
+          };
+        }),
 
       setBenchPriority: (priority) => set({ benchPriority: priority }),
-
-      setSelectedLeague: (leagueKey) => set({ selectedLeagueKey: leagueKey }),
 
       resetRoster: () =>
         set((state) => ({
@@ -171,8 +211,8 @@ export const useAppStore = create<AppState>()(
         rosterConfig: state.rosterConfig,
         roster: state.roster,
         benchPriority: state.benchPriority,
-        selectedLeagueKey: state.selectedLeagueKey,
-        // Don't persist auth tokens or available players
+        positionOverrides: state.positionOverrides,
+        // Don't persist available players (fetched fresh from API)
       }),
     }
   )

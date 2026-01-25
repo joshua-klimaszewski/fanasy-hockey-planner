@@ -16,7 +16,16 @@ export default defineConfig({
       '/api/nhl': {
         target: 'https://api-web.nhle.com/v1',
         changeOrigin: true,
+        secure: true,
         rewrite: (path) => path.replace(/^\/api\/nhl/, ''),
+        configure: (proxy) => {
+          proxy.on('error', (err) => {
+            console.log('Proxy error:', err);
+          });
+          proxy.on('proxyReq', (_proxyReq, req) => {
+            console.log('Proxying:', req.url);
+          });
+        },
       },
     },
   },

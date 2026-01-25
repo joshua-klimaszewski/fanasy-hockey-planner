@@ -19,7 +19,11 @@ export default function RosterRow({
   return (
     <div className="flex items-center gap-2 py-1">
       <PositionCell slot={slot} />
-      <PlayerDropdown player={slot.player} />
+      <PlayerDropdown
+        player={slot.player}
+        slotId={slot.id}
+        slotType={slot.type}
+      />
       <div className="flex gap-1">
         {gameIndicators.map((indicator, index) => (
           <GameCell key={index} indicator={indicator} />
