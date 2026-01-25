@@ -8,14 +8,17 @@ export type TeamAbbrev = string;
 
 /** Player model */
 export interface Player {
-  /** Unique identifier (from Yahoo/Fantrax) */
+  /** Unique identifier */
   id: string;
 
   /** Player's full name */
   name: string;
 
-  /** Player's eligible positions */
+  /** Player's eligible positions (default from API) */
   positions: PlayerPosition[];
+
+  /** User-set dual eligibility (overrides positions if set) */
+  customPositions?: PlayerPosition[];
 
   /** NHL team abbreviation (e.g., 'TOR', 'NYR') */
   team: TeamAbbrev;
@@ -26,11 +29,8 @@ export interface Player {
   /** Injury details if applicable */
   injuryNote?: string;
 
-  /** Yahoo player key (e.g., 'nhl.p.12345') */
-  yahooKey?: string;
-
-  /** Fantrax player ID */
-  fantraxId?: string;
+  /** NHL API player ID */
+  nhlId?: number;
 
   /** Player headshot URL */
   imageUrl?: string;
@@ -45,22 +45,32 @@ export function createPlayer(partial: Partial<Player> & { id: string; name: stri
   };
 }
 
+/** Get effective positions for a player (customPositions overrides positions) */
+export function getEffectivePositions(player: Player): PlayerPosition[] {
+  return player.customPositions ?? player.positions;
+}
+
 /** Check if player is a goalie */
 export function isGoalie(player: Player): boolean {
-  return player.positions.includes('G');
+  return getEffectivePositions(player).includes('G');
 }
 
 /** Check if player is a skater */
 export function isSkater(player: Player): boolean {
-  return player.positions.some((pos) => pos !== 'G');
+  return getEffectivePositions(player).some((pos) => pos !== 'G');
 }
 
 /** Get player's primary position (first in list) */
 export function getPrimaryPosition(player: Player): PlayerPosition | undefined {
-  return player.positions[0];
+  return getEffectivePositions(player)[0];
 }
 
-/** Format player positions as string (e.g., "C, LW") */
+/** Format player positions as string (e.g., "C/LW") */
 export function formatPositions(player: Player): string {
-  return player.positions.join(', ');
+  return getEffectivePositions(player).join('/');
+}
+
+/** Check if player has custom positions set */
+export function hasCustomPositions(player: Player): boolean {
+  return player.customPositions !== undefined && player.customPositions.length > 0;
 }

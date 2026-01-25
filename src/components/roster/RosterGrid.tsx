@@ -1,17 +1,17 @@
+import { useEffect } from 'react';
 import {
   Week,
   WEEKDAYS,
   getWeekDates,
   RosterSlot,
   GameIndicator,
-  createRosterSlot,
-  createPlayer,
-  DEFAULT_ROSTER_CONFIG,
   isBenchSlot,
   isIRSlot,
   hasGameOnDate,
+  getEffectivePositions,
 } from '@/models';
-import { useWeekSchedule } from '@/api/hooks/useSchedule';
+import { useWeekSchedule, useAllPlayers } from '@/api/hooks';
+import { useAppStore } from '@/store/store';
 import { analyzeGoalieWeek } from '@/lib/optimization/goalieHandler';
 import RosterRow from './RosterRow';
 
@@ -19,74 +19,23 @@ interface RosterGridProps {
   week: Week;
 }
 
-// Mock data for initial development
-const mockPlayers = [
-  createPlayer({
-    id: '1',
-    name: 'Connor McDavid',
-    positions: ['C'],
-    team: 'EDM',
-  }),
-  createPlayer({
-    id: '2',
-    name: 'Artemi Panarin',
-    positions: ['LW'],
-    team: 'NYR',
-  }),
-  createPlayer({
-    id: '3',
-    name: 'Mikko Rantanen',
-    positions: ['RW'],
-    team: 'COL',
-  }),
-  createPlayer({
-    id: '4',
-    name: 'Cale Makar',
-    positions: ['D'],
-    team: 'COL',
-  }),
-  createPlayer({
-    id: '5',
-    name: 'Igor Shesterkin',
-    positions: ['G'],
-    team: 'NYR',
-  }),
-];
-
-// Generate mock roster slots
-function generateMockRoster(): RosterSlot[] {
-  const slots: RosterSlot[] = [];
-  let playerIndex = 0;
-
-  const addSlots = (type: string, count: number) => {
-    for (let i = 1; i <= count; i++) {
-      const player =
-        playerIndex < mockPlayers.length ? mockPlayers[playerIndex++] : null;
-      slots.push(
-        createRosterSlot(type as RosterSlot['type'], i, player)
-      );
-    }
-  };
-
-  addSlots('C', DEFAULT_ROSTER_CONFIG.C);
-  addSlots('LW', DEFAULT_ROSTER_CONFIG.LW);
-  addSlots('RW', DEFAULT_ROSTER_CONFIG.RW);
-  addSlots('D', DEFAULT_ROSTER_CONFIG.D);
-  addSlots('U', DEFAULT_ROSTER_CONFIG.U);
-  addSlots('G', DEFAULT_ROSTER_CONFIG.G);
-  addSlots('B', DEFAULT_ROSTER_CONFIG.B);
-  addSlots('IR', DEFAULT_ROSTER_CONFIG.IR);
-  addSlots('IR+', DEFAULT_ROSTER_CONFIG['IR+']);
-
-  return slots;
-}
-
 export default function RosterGrid({ week }: RosterGridProps) {
   const dates = getWeekDates(week.startDate);
-  const roster = generateMockRoster();
+  const roster = useAppStore((state) => state.roster);
+  const setAvailablePlayers = useAppStore((state) => state.setAvailablePlayers);
+
+  // Fetch all NHL players
+  const { data: players, isLoading: playersLoading, error: playersError } = useAllPlayers();
 
   // Fetch real NHL schedule data
-  const { data: schedule, isLoading, error } = useWeekSchedule(week.startDate);
+  const { data: schedule, isLoading: scheduleLoading, error: scheduleError } = useWeekSchedule(week.startDate);
+
+  // Set available players when loaded
+  useEffect(() => {
+    if (players) {
+      setAvailablePlayers(players);
+    }
+  }, [players, setAvailablePlayers]);
 
   // Generate game indicators based on real schedule data
   const getGameIndicators = (slot: RosterSlot): GameIndicator[] => {
@@ -95,7 +44,7 @@ export default function RosterGrid({ week }: RosterGridProps) {
     }
 
     // For goalies, use the goalie handler
-    if (slot.player.positions.includes('G')) {
+    if (getEffectivePositions(slot.player).includes('G')) {
       const analysis = analyzeGoalieWeek(slot.player, schedule, week.startDate);
       return analysis.days.map((day) => day.indicator);
     }
@@ -121,23 +70,32 @@ export default function RosterGrid({ week }: RosterGridProps) {
   const ir = roster.filter((s) => isIRSlot(s));
 
   // Loading state
-  if (isLoading) {
+  if (playersLoading || scheduleLoading) {
     return (
       <div className="bg-slate-800 rounded-lg p-4">
         <div className="flex items-center justify-center py-12">
-          <div className="text-slate-400">Loading schedule...</div>
+          <div className="flex items-center gap-3 text-slate-400">
+            <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            <span>
+              {playersLoading ? 'Loading players...' : 'Loading schedule...'}
+            </span>
+          </div>
         </div>
       </div>
     );
   }
 
   // Error state
-  if (error) {
+  if (playersError || scheduleError) {
+    const error = playersError || scheduleError;
     return (
       <div className="bg-slate-800 rounded-lg p-4">
         <div className="flex items-center justify-center py-12">
           <div className="text-red-400">
-            Error loading schedule: {error.message}
+            Error: {error?.message || 'Failed to load data'}
           </div>
         </div>
       </div>

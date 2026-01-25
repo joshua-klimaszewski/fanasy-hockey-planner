@@ -36,59 +36,59 @@
 ## Phase 2: Schedule Integration
 
 ### 2.1 NHL API Client
-- [ ] Create `src/api/clients/nhlClient.ts`
-- [ ] Implement `getWeekSchedule(startDate)` method
-- [ ] Implement `getTeamWeekSchedule(teamAbbrev, date)` method
-- [ ] Add team abbreviation mapping
+- [x] Create `src/api/clients/nhlClient.ts`
+- [x] Implement `getWeekSchedule(startDate)` method
+- [x] Implement `getTeamWeekSchedule(teamAbbrev, date)` method
+- [x] Add team abbreviation mapping
 
 ### 2.2 Week Utilities
-- [ ] Create `src/lib/schedule/weekCalculator.ts`
-- [ ] Implement NHL week boundary detection
-- [ ] Create `src/lib/schedule/gameMapper.ts`
+- [x] Create `src/lib/schedule/weekCalculator.ts`
+- [x] Implement NHL week boundary detection
+- [x] Create `src/lib/schedule/gameMapper.ts`
 
 ### 2.3 React Query Hooks
-- [ ] Create `src/api/hooks/useSchedule.ts`
-- [ ] Create `src/api/hooks/useRosterSchedules.ts`
+- [x] Create `src/api/hooks/useSchedule.ts`
+- [x] Create `src/api/hooks/useRosterSchedules.ts`
 
 ### 2.4 Roster Grid (Static)
-- [ ] Create `src/components/roster/RosterGrid.tsx`
-- [ ] Create `src/components/roster/RosterRow.tsx`
-- [ ] Create `src/components/roster/GameCell.tsx`
-- [ ] Create `src/components/roster/PositionCell.tsx`
-- [ ] Add mock player data for testing
+- [x] Create `src/components/roster/RosterGrid.tsx`
+- [x] Create `src/components/roster/RosterRow.tsx`
+- [x] Create `src/components/roster/GameCell.tsx`
+- [x] Create `src/components/roster/PositionCell.tsx`
+- [x] Add mock player data for testing
 
 ### 2.5 Goalie Detection
-- [ ] Create `src/lib/optimization/goalieHandler.ts`
-- [ ] Implement back-to-back detection
-- [ ] Add `||` and `?` indicators to GameCell
+- [x] Create `src/lib/optimization/goalieHandler.ts`
+- [x] Implement back-to-back detection
+- [x] Add `||` and `?` indicators to GameCell
 
 ## Phase 3: Yahoo API + OAuth Backend
 
 ### 3.1 Vercel Backend Setup
-- [ ] Create `backend/` directory
-- [ ] Initialize `backend/package.json`
-- [ ] Create `backend/vercel.json`
+- [x] Create `backend/` directory
+- [x] Initialize `backend/package.json`
+- [x] Create `backend/vercel.json`
 
 ### 3.2 OAuth Endpoints
-- [ ] Create `backend/api/auth/login.ts`
-- [ ] Create `backend/api/auth/callback.ts`
-- [ ] Handle token exchange and storage
+- [x] Create `backend/api/auth/login.ts`
+- [x] Create `backend/api/auth/callback.ts`
+- [x] Handle token exchange and storage
 
 ### 3.3 Yahoo API Proxy
-- [ ] Create `backend/api/yahoo/proxy.ts`
-- [ ] Forward authenticated requests to Yahoo API
-- [ ] Handle token refresh
+- [x] Create `backend/api/yahoo/proxy.ts`
+- [x] Forward authenticated requests to Yahoo API
+- [x] Handle token refresh
 
 ### 3.4 Frontend Auth
-- [ ] Create `src/components/auth/AuthProvider.tsx`
-- [ ] Create `src/components/auth/LoginButton.tsx`
-- [ ] Create `src/api/clients/yahooClient.ts`
+- [x] Create `src/components/auth/AuthProvider.tsx`
+- [x] Create `src/components/auth/LoginButton.tsx`
+- [x] Create `src/api/clients/yahooClient.ts`
 
 ### 3.5 Yahoo Data Integration
-- [ ] Create `src/api/hooks/useLeagues.ts`
-- [ ] Create `src/api/hooks/useRoster.ts`
-- [ ] Create `src/api/hooks/usePlayers.ts`
-- [ ] Map Yahoo positions to internal model
+- [x] Create `src/api/hooks/useLeagues.ts`
+- [x] Create `src/api/hooks/useRoster.ts`
+- [x] Create `src/api/hooks/usePlayers.ts`
+- [x] Map Yahoo positions to internal model
 
 ## Phase 4: Player Assignment
 
